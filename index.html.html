@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login to Access API</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.2.0/amazon-cognito-identity.min.js"></script>
+</head>
+<body>
+    <h2>Login</h2>
+    <form id="login-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" required>
+        <br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" required>
+        <br>
+        <button type="submit">Login</button>
+    </form>
+    <p id="status"></p>
+    
+    <div id="file-form" style="display:none;">
+        <h2>Enter File Details</h2>
+        <label for="instance_id">Instance ID:</label>
+        <input type="text" id="instance_id" required>
+        <br>
+        <label for="file_location">File Location:</label>
+        <input type="text" id="file_location" required>
+        <br>
+        <label for="file_name">File Name:</label>
+        <input type="text" id="file_name" required>
+        <br>
+        <button id="submit-file" type="button">Submit</button>
+    </div>
+    
+    <script>
+        const userPoolId = "us-east-1_nm5BS7prG";
+        const clientId = "1blnvrhcoer2e9chovd87a1v7e";
+        const apiUrl = "https://4kcfebaj81.execute-api.us-east-1.amazonaws.com/Test/retrieve-file";
+
+        document.getElementById("login-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            
+            const authenticationData = { Username: username, Password: password };
+            const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+            const poolData = { UserPoolId: userPoolId, ClientId: clientId };
+            const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+            const userData = { Username: username, Pool: userPool };
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: function(session) {
+                    const idToken = session.getIdToken().getJwtToken();
+                    sessionStorage.setItem("idToken", idToken); // Store the token
+                    document.getElementById("status").innerText = "Login successful!";
+                    document.getElementById("file-form").style.display = "block";
+                },
+                onFailure: function(err) {
+                    document.getElementById("status").innerText = "Login failed: " + err.message;
+                }
+            });
+        });
+
+        document.getElementById("submit-file").addEventListener("click", function() {
+            const instanceId = document.getElementById("instance_id").value;
+            const fileLocation = document.getElementById("file_location").value;
+            const fileName = document.getElementById("file_name").value;
+            const idToken = sessionStorage.getItem("idToken");
+
+            if (!idToken) {
+                document.getElementById("status").innerText = "User not authenticated!";
+                return;
+            }
+            
+            fetch(${apiUrl}?instance_id=${instanceId}&file_location=${fileLocation}&file_name=${fileName}, {
+                method: "GET",
+                headers: { Authorization: idToken }
+            })
+            .then(response => response.json())
+            .then(data => document.getElementById("status").innerText = JSON.stringify(data))
+            .catch(error => document.getElementById("status").innerText = "API call failed: " + error);
+        });
+    </script>
+</body>
+</html>
